@@ -1,0 +1,36 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+</head>
+
+<body>
+    <main>
+        <form action="/postsign/" method="POST">
+            {% csrf_token %}
+            {% if messages %}
+            {% for message in messages %}
+            <p class=" {% if message.level == 25 %}{% endif %} {% if message.level != 25 %}{% endif %} ">
+                {{message}}</p>
+            {% endfor %}
+            {% endif %}
+            <div>
+                <label for="email">Email</label>
+                <input type="email" name="email" id="email">
+            </div>
+            <div>
+                <label for="password">Password</label>
+                <input type="password" name="password" id="password">
+            </div>
+            <button type="submit">Login</button>
+            <a href="/register/">Signup</a>
+        </form>
+    </main>
+
+</body>
+
+</html>
