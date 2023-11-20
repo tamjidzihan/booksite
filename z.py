@@ -14,10 +14,10 @@ config = {
   "measurementId": "G-FTCHXJW7SK"
 }
 
-firebase = pyrebase.initialize_app(config)
-authe = firebase.auth()
-database = firebase.database()
-ret_val = authe.create_user_with_email_and_password("tamjidzihan@gmail.com", "tamjid2014")
-now = datetime.now()
-pass_data = {"full_name": 'full_name', "username": 'username', "email": 'email',"approved": 1, "created_at": datetime.timestamp(now)}
-database.child('user').child(ret_val['localId']).set(pass_data)
+# firebase = pyrebase.initialize_app(config)
+# authe = firebase.auth()
+# database = firebase.database()
+# ret_val = authe.create_user_with_email_and_password("tamjidzihan@gmail.com", "tamjid2014")
+# now = datetime.now()
+# pass_data = {"full_name": 'full_name', "username": 'username', "email": 'email',"approved": 1, "created_at": datetime.timestamp(now)}
+# database.child('user').child(ret_val['localId']).set(pass_data)
