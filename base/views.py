@@ -69,19 +69,11 @@ def registerPage(request):
     request.session['website_name'] = settings_name
     return render(request, 'base/register.html')
 
-# def postsignin(request):
-#     if("register_user" in request.POST):
-#         full_name = request.POST.get("name").strip()
-#         username = request.POST.get("username").strip()
-#         email = request.POST.get("email").strip()
-#         password = request.POST.get("password").strip()
-#         confirmpassword = request.POST.get("confirm_password").strip()
-#         ret_val = authe.create_user_with_email_and_password(email, password)
-#         now = datetime.now()
-#         pass_data = {"full_name": full_name, "username": username, "email": email,"approved": 1, "created_at": datetime.timestamp(now)}
-#         database.child('user').child(ret_val['localId']).set(pass_data)
-#     return HttpResponseRedirect('/')
-
+def logout(request):
+    request.session.flush()
+    request.session['website_name'] = settings_name
+    messages.success(request, 'Logout Successfully')
+    return HttpResponseRedirect('/login/')
 
 
 def postsignin(request):

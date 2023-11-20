@@ -12,6 +12,7 @@
     <main>
         <form action="/postsign/" method="POST">
             {% csrf_token %}
+            <input type="hidden" name="login" value="login a user">
             {% if messages %}
             {% for message in messages %}
             <p class=" {% if message.level == 25 %}{% endif %} {% if message.level != 25 %}{% endif %} ">

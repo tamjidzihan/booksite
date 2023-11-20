@@ -1,6 +1,6 @@
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
 
 <head>
     <meta charset="UTF-8">
@@ -11,11 +11,15 @@
 
 <body>
     <main>
-        <form action="/postsign/" method="POST">
+        <form action="/postsign/" method="POST" autocomplete="off">
             {% csrf_token %}
+            <div>
+                <h4>Book Site</h4>
+                <h4>Signup</h4>
+            </div>
             {% if messages %}
             {% for message in messages %}
-            <p class="{% if message.level == 25 %}{% endif %} {% if message.level != 25 %}{% endif %}"> message:
+            <p class="{% if message.level == 25 %}{% endif %} {% if message.level != 25 %}{% endif %}">
                 {{message}}</p>
             {% endfor %}
             {% endif %}
@@ -23,10 +27,11 @@
                 <div>
                     <label for="name">Name</label>
                     <input type="text" name="name" id="name">
+                    <input type="hidden" name="register_user" value="Register a user">
                 </div>
                 <div>
                     <label for="username">UserName</label>
-                    <input type="text" name="username" id="name">
+                    <input type="text" name="username" id="username">
                 </div>
             </div>
             <div>
