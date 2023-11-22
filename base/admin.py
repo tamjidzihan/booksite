@@ -1,7 +1,5 @@
 from django.contrib import admin,messages
-from django.db.models.query import QuerySet
 from django.db.models.aggregates import Count
-from django.http.request import HttpRequest
 from django.urls import reverse
 from django.utils.http import urlencode
 from django.utils.html import format_html
