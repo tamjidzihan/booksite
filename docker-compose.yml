@@ -1,0 +1,11 @@
+version: "4.23"
+services:
+  app:
+    build: .
+    volumes:
+      - .:/docker_storefront
+    ports:
+      - 8001:8001
+    image: application:store_front
+    container_name: app_container
+    command: gunicorn storefront.wsgi:application --bind 0.0.0.0:8001

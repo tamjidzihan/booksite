@@ -1,0 +1,42 @@
+{
+        "title": "Casual Shirt Half",
+        "price": 2150.00,
+        "description": "Mens world, the leading fashion brand in Bangladesh, is synonymous with trendy and effortless style. Offering value fashion for men, women, teenagers and kids, Mens world designs statement-making accessories and lifestyle products inspired by global fashion trends.",
+        "catagory": "Men's Wear"
+}
+
+
+{
+        "title": "Premier Quality Polo Shirts For Men_Premium Polo Shirt",
+        "price": 175,
+        "description": "Products Details Of Men's JARCI Short Sleeve Pesh Colour POLO-Shirt Product Type: polo Shirt Material: 100% Jarci Color: As like picture Apparel Type: Half Sleeve Gender: Men.",
+        "inventory": 40
+        "catagory": "Men's Wear"
+}
+
+
+ {
+        "title": "Premier Quality Polo Shirts For Men_Premium Polo Shirt",
+        "slug": "-",
+        "inventory": 50,
+        "price": 175.50,
+        "description": "Products Details Of Men's JARCI Short Sleeve Pesh Colour POLO-Shirt Product Type: polo Shirt Material: 100% Jarci Color: As like picture Apparel Type: Half Sleeve Gender: Men..",
+        "catagory": "Men's Wear"
+    }
+
+
+
+{
+    "title": [
+        "This field is required."
+    ],
+    "price": [
+        "This field is required."
+    ],
+    "description": [
+        "This field is required."
+    ],
+    "catagory": [
+        "This field is required."
+    ]
+}

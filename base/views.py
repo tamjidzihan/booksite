@@ -1,159 +1,344 @@
-from django.shortcuts import render
-from django.http import HttpResponseRedirect
-from django.contrib import messages
+from django.http import HttpResponse
+from rest_framework.decorators import api_view
+from rest_framework.views import APIView
+from rest_framework.generics import ListCreateAPIView,RetrieveUpdateDestroyAPIView
+#####################################################################################
+from rest_framework import filters
+from django_filters import rest_framework as django_filters
 
-
-from datetime import datetime
-import pyrebase
-
-# Create your views here.
-
-
-settings_name = "bookSite"
-
-config = {
-  "apiKey": "AIzaSyDUqEFZgE0SMDzeERWnfxUR94yQC2hHEyk",
-  "authDomain": "bookproject-b0709.firebaseapp.com",
-  "databaseURL": "https://bookproject-b0709-default-rtdb.asia-southeast1.firebasedatabase.app",
-  "projectId": "bookproject-b0709",
-  "storageBucket": "bookproject-b0709.appspot.com",
-  "messagingSenderId": "650500330497",
-  "appId": "1:650500330497:web:023f6bf511184b3b01dc00",
-  "measurementId": "G-FTCHXJW7SK"
-}
-
-firebase = pyrebase.initialize_app(config)
-authe = firebase.auth()
-database = firebase.database()
-
-
+from django.db.models.aggregates import Count
+from django.shortcuts import render, get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter,OrderingFilter
+from rest_framework.decorators import action
+from rest_framework.viewsets import ModelViewSet,GenericViewSet,ReadOnlyModelViewSet
+from rest_framework.mixins import CreateModelMixin,RetrieveModelMixin,DestroyModelMixin,UpdateModelMixin
+from rest_framework.permissions import IsAuthenticated,AllowAny
+from rest_framework.response import Response
+from rest_framework import status
+from .permissions import IsAdminOrReadOnly
+from .paginations import *
+from .filters import *
+from .models import *
+from .serializers import *
 
 
 def index(request):
-    if ('email' in request.session):
-        if('login' in request.session):
-            request.session['website_name'] = settings_name
-            user_id = request.session.get("localid")
-            result = database.child("websites").child(user_id).get()
-            reports_pass = []
-            counter = 0
-            for results in result.each() or  []:
-                counter +=1
-                report_id = results.key()
-                report_details = results.val()
-
-                web_append = {"id_send": counter, "id": report_id, "website_url": report_details['website_url']}
-
-                reports_pass.append(web_append)
-            return render(request, 'base/index.html', {"data": reports_pass})
-    request.session.flush()
-    request.session['website_name'] = settings_name
-    return HttpResponseRedirect("/login/")
-
-def loginPage(request):
-    if ('email' in request.session):
-        if('login' in request.session):
-            request.session['website_name'] = settings_name
-            return HttpResponseRedirect("/")
-    request.session.flush()
-    request.session['website_name'] = settings_name
-    return render(request, 'base/login.html')
+    return render(request, "index.html",{'name':'zihan'})
 
 
-def registerPage(request):
-    if ('email' in request.session):
-        if('login' in request.session):
-            request.session['website_name'] = settings_name
-            return HttpResponseRedirect("/")
-    request.session.flush()
-    request.session['website_name'] = settings_name
-    return render(request, 'base/register.html')
 
-def logout(request):
-    request.session.flush()
-    request.session['website_name'] = settings_name
-    messages.success(request, 'Logout Successfully')
-    return HttpResponseRedirect('/login/')
+class ProducViewset(ModelViewSet):
+    queryset = Product.objects.prefetch_related('images').all()
+    serializer_class = ProductSerializer
+    filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
+    filterset_class = ProductFilter
+    pagination_class = DefaultPagination
+    permission_classes = [IsAdminOrReadOnly]
+    ordering_fields = ['id','price','last_update']
+    search_fields = ['title']
+    
+
+    def get_serializer_context(self):
+        return {"request": self.request}
+    
+    def destroy(self, request, *args, **kwargs):
+         if OrderItem.objects.filter(product_id = kwargs['pk']).count() > 0:
+            return Response({"error": f"Product can not be deleted.Because Product is on orderitem."},status=status.HTTP_405_METHOD_NOT_ALLOWED)
+         return super().destroy(request, *args, **kwargs)
+    
+class ProducImageViewset(ModelViewSet):
+    serializer_class = ProductImageSerializer
+    permission_classes = [IsAdminOrReadOnly]
+    http_method_names = ['get','post','patch','delete']
+
+    def get_queryset(self):
+        return ProductImage.objects.filter(product_id = self.kwargs['product_pk']).select_related('product')
+    
+    def get_serializer_context(self):
+        return {'product_id':self.kwargs['product_pk']}
+
+class CatagoryViewset(ModelViewSet):
+    queryset = Catagory.objects.annotate(product_count=Count("product")).all()
+    serializer_class = CatagorySerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    def get_serializer_context(self):
+        return {"request": self.request}
+    
+    def destroy(self, request, *args, **kwargs):
+        if Product.objects.filter(catagory_id = kwargs['pk']):
+            return Response({"error": f"Catagory can not be deleted.Because it has Some product on it."},status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        return super().destroy(request, *args, **kwargs)
 
 
-def postsignin(request):
-    if("register_user" in request.POST):
-        full_name = request.POST.get("name").strip()
-        username = request.POST.get("username").strip()
-        email = request.POST.get("email").strip()
-        password = request.POST.get("password").strip()
-        confirmpassword = request.POST.get("confirm_password").strip()
-        error = False
-        if(password != confirmpassword):
-            messages.warning(request, "password not matched")
-            print("error:password not matched")
-            error = True
-        if (len(password) < 8):
-            messages.warning(request, "Password is too short")
-            print("error:Password is too short")
-            error = True
-        if (len(full_name) == 0):
-            messages.warning(request, "Full name is Empty")
-            print("error:Full name is Empty")
-            error = True
-        if (len(username) == 0):
-            messages.warning(request, "Username is Empty")
-            print("error:Username is Empty")
-            error = True
-        if (len(email) == 0):
-            messages.warning(request, "Email is Empty")
-            print("error:Email is Empty")
-            error = True
+class CatagoryProductViewSet(ReadOnlyModelViewSet):
+    queryset = Catagory.objects.all()
+    serializer_class = CatagoryProductSerializer
+    # filter_backends = [django_filters.DjangoFilterBackend, filters.OrderingFilter]
+    # filterset_fields = ['id']
+    # ordering_fields = ['title']
 
-        if(error == False):
-            try:
-                print("look good")
-                ret_val = authe.create_user_with_email_and_password(email, password)
-            except:
-                messages.warning(request, "Creds already exists.")
-                return HttpResponseRedirect('/register/')
-            now = datetime.now()
-            pass_data = {"full_name": full_name, "username": username, "email": email,"approved": 1, "created_at": datetime.timestamp(now)}
-            database.child('user').child(ret_val['localId']).set(pass_data)
-            messages.success(request, "User Created Successfully. Please use creds for login.")
-            print("User data passed")
-            return HttpResponseRedirect('/register/')
+    def get_queryset(self):
+        catagory_id = self.kwargs.get('catagory_id')
+        if catagory_id:
+            return Product.objects.filter(catagory_id=catagory_id)
+        return Catagory.objects.all()
 
-        return HttpResponseRedirect('/register/')
 
-    elif("login" in request.POST):
-        email = request.POST.get("email")
-        password = request.POST.get("password")
-        try:
-            ret_val = authe.sign_in_with_email_and_password(email, password)
-        except:
-            messages.warning(request, 'Credentials error.')
-            return HttpResponseRedirect('/login/')
-        user_id  = ret_val['localId']
-        try:
-            user_info_ret = database.child('user').child(user_id).get()
-        except:
-            request.session.flush()
-            request.session['website_name'] = settings_name
-            messages.warning(request, 'Credentials error.')
-            return HttpResponseRedirect('/login/')
-        user_info = user_info_ret.val()
-        if(user_info['approved'] != 0):
-            messages.warning(request, "Please wait for approvel from Admin.")
-            return HttpResponseRedirect('/login/')
-        request.session['login'] = True
-        request.session['name'] = user_info["full_name"]
-        request.session['email'] = email
-        request.session['localid'] = user_id
-        return HttpResponseRedirect('/')
-    elif("forgetpass" in request.POST):
-        email = request.POST.get("email")
-        try:
-            ret_val = authe.send_password_reset_email(email)
-            messages.success(request, 'Please check your mail for resetting password.')
-            return HttpResponseRedirect("/")
-        except:
-            messages.warning(request, 'Credentials error.')
-            return HttpResponseRedirect('/')
-    else:
-        return HttpResponseRedirect('/')
+class LikeViewset(ModelViewSet):
+    serializer_class = LikeSerializer
+
+    def get_queryset(self):
+        return Like.objects.filter(product_id = self.kwargs['product_pk'])
+
+
+    def get_serializer_context(self):
+        return {'product_id':self.kwargs['product_pk']}
+
+
+class CartViewset(CreateModelMixin,
+                  RetrieveModelMixin,
+                  DestroyModelMixin,
+                  GenericViewSet):
+    queryset = Cart.objects.prefetch_related('cartitem_set__product').all()
+    serializer_class = CartSerializer
+
+
+class CartItemViewset(ModelViewSet):
+    http_method_names = ['get','post','patch','delete']
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return AddCartItemSerializer
+        elif self.request.method == 'PATCH':
+            return UpdateCartItemSerializer
+        return CartItemSerializer
+
+    def get_queryset(self):
+        return CartItem.objects.filter(cart_id = self.kwargs['cart_pk']).select_related('product')
+    
+    def get_serializer_context(self):
+        return {'cart_id':self.kwargs['cart_pk']}
+
+
+class CustomerViwset(CreateModelMixin,
+                     RetrieveModelMixin,
+                     UpdateModelMixin,
+                     GenericViewSet):
+    
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False,methods=['GET','PUT'])
+    def me(self,request):
+        (customer,created) = Customer.objects.get_or_create(user_id = request.user.id)
+        if request.method == 'GET':
+            serializer = CustomerSerializer(customer)
+            return Response(serializer.data)
+        if request.method == 'PUT':
+            serializer = CustomerSerializer(customer,data= request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
+
+class OrderViewset(ModelViewSet):
+    queryset = Order.objects.prefetch_related('items__product').all()
+    serializer_class = OrderSerializer
+
+class OrderItemViewset(ModelViewSet):
+    http_method_names = ['get','post','patch','delete']
+    serializer_class = OrderItemsSerializer
+    def get_queryset(self):
+        return OrderItem.objects.filter(order_id = self.kwargs['order_pk']).select_related('product')
+
+    def get_serializer_context(self):
+        return {'order_id':self.kwargs['order_pk']}
+
+
+
+
+
+# +++++++++++++++++++++++++OLD CODE++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+# @api_view(['GET','POST'])
+# def product_list(request):
+#     if request.method == 'GET':
+#         queryset = Product.objects.select_related('catagory').all()
+#         serializer = ProductSerializer(queryset, many = True,context={'request': request})
+#         return Response(serializer.data)
+#     elif request.method == 'POST':
+#         serializer = ProductSerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         serializer.save()
+#         return Response(serializer.data,status=status.HTTP_201_CREATED)
+
+
+# @api_view(['GET','PUT','DELETE'])
+# def product_detail(request,pk):
+#         product = get_object_or_404(Product, pk=pk)
+#         if request.method == 'GET':
+#                 serializer = ProductSerializer(product,context={'request': request})
+#                 return Response(serializer.data)
+#         elif request.method == 'PUT':
+#               serializer = ProductSerializer(product,data=request.data)
+#               serializer.is_valid(raise_exception=True)
+#               serializer.save()
+#               return Response(serializer.data,status=status.HTTP_201_CREATED)
+#         elif request.method == 'DELETE':
+#               if product.orderitem.count()>0:
+#                     return Response({'error':f'Product can not be deleted.Because Product is on orderitem.' },status=status.HTTP_405_METHOD_NOT_ALLOWED)
+#               product.delete()
+#               return Response({'Deleted Product id': pk},status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+# @api_view(["GET", "POST"])
+# def catagoty_list(request):
+#     if request.method == "GET":
+#         queryset = Catagory.objects.annotate(product_count=Count("product")).all()
+#         serializer = CatagorySerializer(
+#             queryset, many=True, context={"request": request}
+#         )
+#         return Response(serializer.data)
+#     elif request.method == "POST":
+#         serializer = CatagorySerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         serializer.save()
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+# @api_view(["GET", "PUT", "DELETE"])
+# def catagoty_detail(request, pk):
+#     catagory = get_object_or_404(
+#         Catagory.objects.annotate(product_count=Count("product")), pk=pk
+#     )
+#     if request.method == "GET":
+#         serializer = CatagorySerializer(catagory)
+#         return Response(serializer.data)
+#     elif request.method == "PUT":
+#         serializer = CatagorySerializer(catagory, data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         serializer.save()
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
+#     elif request.method == "DELETE":
+#         if catagory.product_set.count() > 0:
+#             return Response(
+#                 {
+#                     "error": f"Catagory can not be deleted.Because it has Some product on it."
+#                 },
+#                 status=status.HTTP_405_METHOD_NOT_ALLOWED,
+#             )
+#         else:
+#             catagory.delete()
+#             return Response(
+#                 {"Deleted Catagory id": pk}, status=status.HTTP_204_NO_CONTENT
+#             )
+
+
+
+#---------------------old code(APIView)----------------------------------
+
+
+# class ProductList(APIView):
+#     def get(self, request):
+#         queryset = Product.objects.select_related("catagory").all()
+#         serializer = ProductSerializer(
+#             queryset, many=True, context={"request": request}
+#         )
+#         return Response(serializer.data)
+
+#     def post(self, request):
+#         serializer = ProductSerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         serializer.save()
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+
+# class ProductDetail(APIView):
+#     def get(self, request, pk):
+#         product = get_object_or_404(Product, pk=pk)
+#         serializer = ProductSerializer(product, context={"request": request})
+#         return Response(serializer.data)
+
+#     def put(self, request, pk):
+#         product = get_object_or_404(Product, pk=pk)
+#         serializer = ProductSerializer(product, data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         serializer.save()
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+#     def delete(self, request, pk):
+#         product = get_object_or_404(Product, pk=pk)
+#         if product.orderitem.count() > 0:
+#             return Response(
+#                 {
+#                     "error": f"Product can not be deleted.Because Product is on orderitem."
+#                 },
+#                 status=status.HTTP_405_METHOD_NOT_ALLOWED,
+#             )
+#         product.delete()
+#         return Response({"Product Deleted id": pk}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+
+
+
+#------------old code(ListCreateAPIView,RetrieveUpdateDestroyAPIView)------------------
+
+
+
+
+# class ProductList(ListCreateAPIView):
+#     queryset = Product.objects.all()
+#     serializer_class = ProductSerializer
+
+#     def get_serializer_context(self):
+#         return {"request": self.request}
+
+
+
+
+# class ProductDetail(RetrieveUpdateDestroyAPIView):
+#     queryset = Product.objects.all()
+#     serializer_class = ProductSerializer
+#     # lookup_field = 'id'
+
+#     def delete(self, request, pk):
+#         product = get_object_or_404(Product, pk=pk)
+#         if product.orderitem.count() > 0:
+#             return Response({"error": f"Product can not be deleted.Because Product is on orderitem."},status=status.HTTP_405_METHOD_NOT_ALLOWED,)
+#         product.delete()
+#         return Response({"Product Deleted id": pk}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+
+
+# class CatagoryList(ListCreateAPIView):
+#     queryset = Catagory.objects.annotate(product_count=Count("product")).all()
+#     serializer_class = CatagorySerializer
+
+#     def get_serializer_context(self):
+#         return {"request": self.request}
+
+
+# class CatagoryDetail(RetrieveUpdateDestroyAPIView):
+#     queryset =  Catagory.objects.annotate(product_count=Count("product"))
+#     serializer_class = CatagorySerializer
+
+#     def delete(self, request,pk):
+#         catagory = get_object_or_404(
+#         Catagory.objects.annotate(product_count=Count("product")), pk=pk)
+#         if catagory.product_set.count() > 0:
+#             return Response({"error": f"Catagory can not be deleted.Because it has Some product on it."},status=status.HTTP_405_METHOD_NOT_ALLOWED,)
+#         catagory.delete()
+#         return Response({"Deleted Catagory id": pk}, status=status.HTTP_204_NO_CONTENT)
